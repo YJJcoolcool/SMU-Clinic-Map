@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Data File Processor | SMU Insurance Clinic Map</title>
+
+        <!-- use version 0.20.3 -->
+        <script
+            type="text/javascript"
+            src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+        ></script>
+
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+        <script src="/data-processor/data-processor.js" defer></script>
+    </head>
+    <body class="p-4">
+        <h1 class="text-xl">Data File Processor</h1>
+        <div class="flex flex-col gap-2">
+            <div class="p-2 border border-gray-200">
+                <h2 class="text-lg">Step 1: Upload Excel/JSON File:</h2>
+                <input
+                    type="file"
+                    id="file-input"
+                    accept=".xlsx,.xls,.json"
+                    class="bg-gray-200 p-2 cursor-pointer"
+                />
+            </div>
+            <!-- TODO: Each location display in a table with an input for the coordinates -->
+            <div class="flex flex-col gap-2 p-2 border border-gray-200">
+                <h2 class="text-lg">
+                    Step 2: Fill In Coordinates for Clinics:
+                </h2>
+                <p class="italic text-sm text-gray-700">
+                    Coordinate query is powered by
+                    <a
+                        href="https://nominatim.org/"
+                        target="_blank"
+                        class="text-blue-500"
+                        >Nominatim</a
+                    >
+                    which queries
+                    <a
+                        href="https://www.openstreetmap.org/copyright"
+                        target="_blank"
+                        class="text-blue-500"
+                        >OpenStreetMap</a
+                    >
+                    data. To comply with
+                    <a
+                        href="https://operations.osmfoundation.org/policies/nominatim/"
+                        target="_blank"
+                        class="text-blue-500"
+                        >Nominatim's Usage Policy</a
+                    >, requests are limited to 1 per second.
+                </p>
+                <p class="italic text-sm text-gray-700">Changes are updated into the JSON automatically.</p>
+                <table class="table-auto border">
+                    <thead>
+                        <tr>
+                            <th scope="col">Clinic Name</th>
+                            <th scope="col">Area</th>
+                            <th scope="col">Address</th>
+                            <th scope="col">Coordinates</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+
+                <!-- Template for each clinic, which has its own row in the table
+                        Each row contains the Clinic Name, Area, Region, Address, Coordinates, and Action buttons -->
+                <template id="table-row-template">
+                    <tr>
+                        <td class="border">
+                            <textarea class="w-full resize-none"></textarea>
+                        </td>
+                        <td class="border">
+                            <textarea class="w-full resize-none"></textarea>
+                        </td>
+                        <td class="border">
+                            <textarea class="w-full resize-none"></textarea>
+                        </td>
+                        <td class="border">
+                            <textarea class="w-full resize-none"></textarea>
+                        </td>
+                        <td class="border">
+                            <button class="bg-gray-200">Query Coordinates</button>
+                        </td>
+                    </tr>
+                </template>
+            </div>
+            <div class="flex flex-col gap-2 p-2 border border-gray-200">
+                <h2 class="text-lg">Step 3: Download Final JSON File:</h2>
+                <textarea
+                    id="output"
+                    readonly
+                    class="resize-y w-full max-w-200 border"
+                    placeholder="The processed JSON text will appear here."
+                ></textarea>
+                <button
+                    onclick="download()"
+                    class="w-fit p-2 bg-gray-200 rounded"
+                >
+                    Download
+                </button>
+            </div>
+        </div>
+    </body>
+</html>
