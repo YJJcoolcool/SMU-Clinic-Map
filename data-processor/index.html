@@ -28,11 +28,14 @@
                     class="bg-gray-200 p-2 cursor-pointer"
                 />
             </div>
-            <!-- TODO: Each location display in a table with an input for the coordinates -->
             <div class="flex flex-col gap-2 p-2 border border-gray-200">
                 <h2 class="text-lg">
                     Step 2: Fill In Coordinates for Clinics:
                 </h2>
+                <h3>Email Address</h3>
+                <p class="italic text-sm text-gray-700">An email is required to query the Nominatim API. Emails are not stored on this static website, but may be processed by Nominatim.</p>
+                <input id="email-input" type="email" class="border">
+                <h3>Data Table</h3>
                 <p class="italic text-sm text-gray-700">
                     Coordinate query is powered by
                     <a
@@ -87,7 +90,8 @@
                             <textarea class="w-full resize-none"></textarea>
                         </td>
                         <td class="border">
-                            <button class="bg-gray-200">Query Coordinates</button>
+                            <button class="query-button w-full h-full bg-gray-200 rounded cursor-pointer disabled:opacity-75 disabled:cursor-progress">Query Coordinates</button>
+                            <button class="w-full h-full bg-gray-200 rounded cursor-pointer">Open Coordinates</button>
                         </td>
                     </tr>
                 </template>

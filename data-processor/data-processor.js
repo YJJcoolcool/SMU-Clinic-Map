@@ -13,52 +13,60 @@ function handleFileSelection(event) {
     // Check that the file exists
     if (!file) alert("No file selected. Please choose a file.", "error");
 
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+
     const reader = new FileReader();
 
     reader.onload = (e) => {
         const data = e.target.result;
-        const workbook = XLSX.read(data, { type: "array" });
 
-        // Go through each sheet (NORTH, NORTH-EAST, etc.)
-        workbook.SheetNames.forEach((sheetName) => {
-            let jsonDataCurrentSheet;
+        if (fileExtension === "xlsx" || fileExtension === "xls") {
+            const workbook = XLSX.read(data, { type: "array" });
 
-            const worksheet = workbook.Sheets[sheetName];
+            // Go through each sheet (NORTH, NORTH-EAST, etc.)
+            workbook.SheetNames.forEach((sheetName) => {
+                let jsonDataCurrentSheet;
 
-            // First extraction of entire sheet
-            jsonDataCurrentSheet = XLSX.utils.sheet_to_json(worksheet);
+                const worksheet = workbook.Sheets[sheetName];
 
-            // Look through the worksheet to find the header row
-            let headerRow = 0;
-            for (const row of jsonDataCurrentSheet) {
-                // Search for the "No." header that only appears in the header row
-                if (Object.values(row).includes("No.")) {
-                    headerRow = row.__rowNum__;
-                    break;
+                // First extraction of entire sheet
+                jsonDataCurrentSheet = XLSX.utils.sheet_to_json(worksheet);
+
+                // Look through the worksheet to find the header row
+                let headerRow = 0;
+                for (const row of jsonDataCurrentSheet) {
+                    // Search for the "No." header that only appears in the header row
+                    if (Object.values(row).includes("No.")) {
+                        headerRow = row.__rowNum__;
+                        break;
+                    }
                 }
-            }
 
-            // Second extraction of the worksheet with only the clinics' details
-            jsonDataCurrentSheet = XLSX.utils.sheet_to_json(worksheet, {
-                range: headerRow,
+                // Second extraction of the worksheet with only the clinics' details
+                jsonDataCurrentSheet = XLSX.utils.sheet_to_json(worksheet, {
+                    range: headerRow,
+                });
+
+                console.log(sheetName);
+                console.log("Excel Data:", jsonDataCurrentSheet);
+
+                jsonData = jsonData.concat(jsonDataCurrentSheet);
             });
 
-            console.log(sheetName);
-            console.log("Excel Data:", jsonDataCurrentSheet);
-
-            jsonData = jsonData.concat(jsonDataCurrentSheet);
-        });
-
-        // Clean up data, removing whitespace and ensuring proper form of headers
-        jsonData.forEach((clinic) => {
-            for (const [key, value] of Object.entries(clinic)) {
-                let cleanedKey = key.trim().toUpperCase();
-                let cleanedValue =
-                    typeof value === "string" ? value.trim() : value;
-                delete clinic[key];
-                clinic[cleanedKey] = cleanedValue;
-            }
-        });
+            // Clean up data, removing whitespace and ensuring proper form of headers
+            jsonData.forEach((clinic) => {
+                for (const [key, value] of Object.entries(clinic)) {
+                    let cleanedKey = key.trim().toUpperCase();
+                    let cleanedValue =
+                        typeof value === "string" ? value.trim() : value;
+                    delete clinic[key];
+                    clinic[cleanedKey] = cleanedValue;
+                }
+            });
+        } else if (fileExtension === "json") {
+            jsonData = JSON.parse(data)
+            console.log(JSON.parse(data))
+        }
 
         // Display the jsonData
         displayJSONData();
@@ -67,7 +75,11 @@ function handleFileSelection(event) {
         dataIntoRows();
     };
 
-    reader.readAsArrayBuffer(file);
+    if (fileExtension === "xlsx" || fileExtension === "xls") {
+        reader.readAsArrayBuffer(file);
+    } else if (fileExtension === "json") {
+        reader.readAsText(file);
+    }
 }
 
 function displayJSONData() {
@@ -91,6 +103,7 @@ function dataIntoRows() {
         let clinicAddress = td[2].value = clinic["ADDRESS"];
         let clinicCoordinates = td[3].value = clinic["COORDINATES"] || "";
 
+        // Clinic Name
         td[0].addEventListener('focus', () => {
             editing = {
                 'CLINIC': clinicName,
@@ -101,6 +114,8 @@ function dataIntoRows() {
             editing['NEW_VALUE'] = event.target.value;
             modifyJSONData(editing['CLINIC'], editing['ATTRIBUTE'], editing['NEW_VALUE']);
         })
+
+        // Clinic Area
         td[1].addEventListener('focus', () => {
             editing = {
                 'CLINIC': clinicName,
@@ -111,6 +126,8 @@ function dataIntoRows() {
             editing['NEW_VALUE'] = event.target.value;
             modifyJSONData(editing['CLINIC'], editing['ATTRIBUTE'], editing['NEW_VALUE']);
         })
+
+        // Clinic Address
         td[2].addEventListener('focus', () => {
             editing = {
                 'CLINIC': clinicName,
@@ -121,6 +138,8 @@ function dataIntoRows() {
             editing['NEW_VALUE'] = event.target.value;
             modifyJSONData(editing['CLINIC'], editing['ATTRIBUTE'], editing['NEW_VALUE']);
         })
+
+        // Clinic Coordinates
         td[3].addEventListener('focus', () => {
             editing = {
                 'CLINIC': clinicName,
@@ -132,9 +151,37 @@ function dataIntoRows() {
             modifyJSONData(editing['CLINIC'], editing['ATTRIBUTE'], editing['NEW_VALUE']);
         })
 
-        TABLE_BODY.appendChild(clone);
+        let buttons = clone.querySelectorAll("button");
+        
+        // Query Coordinates Button
+        buttons[0].addEventListener('click', () => {
+            tempDisableAllQueryButtons();
+            nominatimSearch(td[2].value).then((latlon) => {
+                if (latlon) {
+                    console.log(latlon);
+                    modifyJSONData(clinicName, "COORDINATES", latlon);
+                    td[3].value = latlon;
+                } else {
+                    alert("Query failed for clinic: " + clinicName + ". Check console for more info.");
+                }
+            });
+        });
 
-        nominatimSearch(clinic["ADDRESS"])
+        // Open Coordinates Button
+        buttons[1].addEventListener('click', () => {
+            const latlon = td[3].value.trim();
+
+            if (!latlon) {
+                alert("No coordinates entered!");
+                return;
+            }
+
+            const url = `https://www.google.com/maps/search/?api=1&query=${latlon}`
+
+            window.open(url, "_blank");
+        });
+
+        TABLE_BODY.appendChild(clone);
     });
 }
 
@@ -177,6 +224,42 @@ function download() {
     URL.revokeObjectURL(url);
 }
 
-function nominatimSearch(addressString) {
-    console.log(/SINGAPORE (\d{6})/.exec(addressString)[1])
+async function nominatimSearch(addressString) {
+    let email = document.getElementById("email-input").value;
+    email = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.exec(email);
+
+    if (!email) {
+        alert("No email address entered! Ensure you enter a valid email address.");
+        return;
+    } else {
+        email = email[0];
+    }
+
+    let postalCode = /SINGAPORE (\d{6})/.exec(addressString)[1];
+
+    let url = `https://nominatim.openstreetmap.org/search?country=SINGAPORE&postalcode=${postalCode}&format=json&email=${email}`
+    console.log("Querying URL: " + url);
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.length <= 0) {
+        alert("Nothing returned from query! The POI may not exist on OpenStreetMap.");
+        return;
+    } else {
+        console.log(data);
+        return data[0]["lat"] + ", " + data[0]["lon"];
+    }
+}
+
+function tempDisableAllQueryButtons() {
+    document.querySelectorAll(".query-button").forEach((elem) => {
+        elem.disabled = true;
+    })
+
+    window.setTimeout(() => {
+        document.querySelectorAll(".query-button").forEach((elem) => {
+            elem.disabled = false;
+        })
+    }, 1500)
 }
