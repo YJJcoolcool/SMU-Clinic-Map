@@ -13,7 +13,7 @@ function handleFileSelection(event) {
     // Check that the file exists
     if (!file) alert("No file selected. Please choose a file.", "error");
 
-    const fileExtension = file.name.split('.').pop().toLowerCase();
+    const fileExtension = file.name.split(".").pop().toLowerCase();
 
     const reader = new FileReader();
 
@@ -64,8 +64,8 @@ function handleFileSelection(event) {
                 }
             });
         } else if (fileExtension === "json") {
-            jsonData = JSON.parse(data)
-            console.log(JSON.parse(data))
+            jsonData = JSON.parse(data);
+            console.log(JSON.parse(data));
         }
 
         // Display the jsonData
@@ -98,77 +98,100 @@ function dataIntoRows() {
 
         let td = clone.querySelectorAll("textarea");
 
-        let clinicName = td[0].value = clinic["CLINIC"];
-        let clinicArea = td[1].value = clinic["AREA"];
-        let clinicAddress = td[2].value = clinic["ADDRESS"];
-        let clinicCoordinates = td[3].value = clinic["COORDINATES"] || "";
+        let clinicName = (td[0].value = clinic["CLINIC"]);
+        let clinicArea = (td[1].value = clinic["AREA"]);
+        let clinicAddress = (td[2].value = clinic["ADDRESS"]);
+        let clinicCoordinates = (td[3].value = clinic["COORDINATES"] || "");
 
         // Clinic Name
-        td[0].addEventListener('focus', () => {
+        td[0].addEventListener("focus", () => {
             editing = {
-                'CLINIC': clinicName,
-                'ATTRIBUTE': "CLINIC"
-            }
-        })
-        td[0].addEventListener('input', (event) => {
-            editing['NEW_VALUE'] = event.target.value;
-            modifyJSONData(editing['CLINIC'], editing['ATTRIBUTE'], editing['NEW_VALUE']);
-        })
+                CLINIC: clinicName,
+                ATTRIBUTE: "CLINIC",
+            };
+        });
+        td[0].addEventListener("input", (event) => {
+            editing["NEW_VALUE"] = event.target.value;
+            modifyJSONData(
+                editing["CLINIC"],
+                editing["ATTRIBUTE"],
+                editing["NEW_VALUE"],
+            );
+        });
 
         // Clinic Area
-        td[1].addEventListener('focus', () => {
+        td[1].addEventListener("focus", () => {
             editing = {
-                'CLINIC': clinicName,
-                'ATTRIBUTE': "AREA"
-            }
-        })
-        td[1].addEventListener('input', (event) => {
-            editing['NEW_VALUE'] = event.target.value;
-            modifyJSONData(editing['CLINIC'], editing['ATTRIBUTE'], editing['NEW_VALUE']);
-        })
+                CLINIC: clinicName,
+                ATTRIBUTE: "AREA",
+            };
+        });
+        td[1].addEventListener("input", (event) => {
+            editing["NEW_VALUE"] = event.target.value;
+            modifyJSONData(
+                editing["CLINIC"],
+                editing["ATTRIBUTE"],
+                editing["NEW_VALUE"],
+            );
+        });
 
         // Clinic Address
-        td[2].addEventListener('focus', () => {
+        td[2].addEventListener("focus", () => {
             editing = {
-                'CLINIC': clinicName,
-                'ATTRIBUTE': "ADDRESS"
-            }
-        })
-        td[2].addEventListener('input', (event) => {
-            editing['NEW_VALUE'] = event.target.value;
-            modifyJSONData(editing['CLINIC'], editing['ATTRIBUTE'], editing['NEW_VALUE']);
-        })
+                CLINIC: clinicName,
+                ATTRIBUTE: "ADDRESS",
+            };
+        });
+        td[2].addEventListener("input", (event) => {
+            editing["NEW_VALUE"] = event.target.value;
+            modifyJSONData(
+                editing["CLINIC"],
+                editing["ATTRIBUTE"],
+                editing["NEW_VALUE"],
+            );
+        });
 
         // Clinic Coordinates
-        td[3].addEventListener('focus', () => {
+        td[3].addEventListener("focus", () => {
             editing = {
-                'CLINIC': clinicName,
-                'ATTRIBUTE': "COORDINATES"
-            }
-        })
-        td[3].addEventListener('input', (event) => {
-            editing['NEW_VALUE'] = event.target.value;
-            modifyJSONData(editing['CLINIC'], editing['ATTRIBUTE'], editing['NEW_VALUE']);
-        })
+                CLINIC: clinicName,
+                ATTRIBUTE: "COORDINATES",
+            };
+        });
+        td[3].addEventListener("input", (event) => {
+            editing["NEW_VALUE"] = event.target.value;
+            modifyJSONData(
+                editing["CLINIC"],
+                editing["ATTRIBUTE"],
+                editing["NEW_VALUE"],
+            );
+        });
 
         let buttons = clone.querySelectorAll("button");
-        
+
         // Query Coordinates Button
-        buttons[0].addEventListener('click', () => {
+        buttons[0].addEventListener("click", () => {
             tempDisableAllQueryButtons();
-            nominatimSearch(td[2].value).then((latlon) => {
-                if (latlon) {
+            nominatimSearch(td[2].value)
+                .then((latlon) => {
+                    if (!latlon) {
+                        throw new Error(
+                            "Query failed for clinic: " +
+                            clinicName +
+                            ". Check console for more info.",
+                        );
+                    }
                     console.log(latlon);
                     modifyJSONData(clinicName, "COORDINATES", latlon);
                     td[3].value = latlon;
-                } else {
-                    alert("Query failed for clinic: " + clinicName + ". Check console for more info.");
-                }
-            });
+                })
+                .catch((error) => {
+                    alert(error.message);
+                });
         });
 
         // Open Coordinates Button
-        buttons[1].addEventListener('click', () => {
+        buttons[1].addEventListener("click", () => {
             const latlon = td[3].value.trim();
 
             if (!latlon) {
@@ -176,7 +199,7 @@ function dataIntoRows() {
                 return;
             }
 
-            const url = `https://www.google.com/maps/search/?api=1&query=${latlon}`
+            const url = `https://www.google.com/maps/search/?api=1&query=${latlon}`;
 
             window.open(url, "_blank");
         });
@@ -185,9 +208,22 @@ function dataIntoRows() {
     });
 }
 
+/**
+ * Update the global jsonData variable, while also updating the last updated date
+ * @param clinicName Name of the clinic to update
+ * @param attributeName Name of the attribute to update
+ * @param newValue The new value of the attribute
+ */
 function modifyJSONData(clinicName, attributeName, newValue) {
+    // Set last updated attribute of the jsonData
+    const date = new Date();
+    const dateStr = `${date.getUTCFullYear()}-${("0" + date.getUTCMonth()).slice(-2)}-${date.getUTCDate()}`;
+
+    jsonData["last_modified"] = dateStr;
+
+    // Find the clinic in the data, then update the respective attribute
     for (clinic of jsonData) {
-        if (clinic['CLINIC'] === clinicName) {
+        if (clinic["CLINIC"] === clinicName) {
             delete clinic[attributeName];
             clinic[attributeName] = newValue;
             break;
@@ -229,23 +265,24 @@ async function nominatimSearch(addressString) {
     email = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.exec(email);
 
     if (!email) {
-        alert("No email address entered! Ensure you enter a valid email address.");
-        return;
-    } else {
-        email = email[0];
+        throw new Error(
+            "No email address entered! Ensure you enter a valid email address.",
+        );
     }
+    email = email[0];
 
     let postalCode = /SINGAPORE (\d{6})/.exec(addressString)[1];
 
-    let url = `https://nominatim.openstreetmap.org/search?country=SINGAPORE&postalcode=${postalCode}&format=json&email=${email}`
+    let url = `https://nominatim.openstreetmap.org/search?country=SINGAPORE&postalcode=${postalCode}&format=json&email=${email}`;
     console.log("Querying URL: " + url);
 
     const response = await fetch(url);
     const data = await response.json();
 
     if (data.length <= 0) {
-        alert("Nothing returned from query! The POI may not exist on OpenStreetMap.");
-        return;
+        throw new Error(
+            "Nothing returned from query! The POI may not exist on OpenStreetMap.",
+        );
     } else {
         console.log(data);
         return data[0]["lat"] + ", " + data[0]["lon"];
@@ -255,11 +292,11 @@ async function nominatimSearch(addressString) {
 function tempDisableAllQueryButtons() {
     document.querySelectorAll(".query-button").forEach((elem) => {
         elem.disabled = true;
-    })
+    });
 
     window.setTimeout(() => {
         document.querySelectorAll(".query-button").forEach((elem) => {
             elem.disabled = false;
-        })
-    }, 1500)
+        });
+    }, 1500);
 }

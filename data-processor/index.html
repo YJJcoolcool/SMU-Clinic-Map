@@ -33,8 +33,12 @@
                     Step 2: Fill In Coordinates for Clinics:
                 </h2>
                 <h3>Email Address</h3>
-                <p class="italic text-sm text-gray-700">An email is required to query the Nominatim API. Emails are not stored on this static website, but may be processed by Nominatim.</p>
-                <input id="email-input" type="email" class="border">
+                <p class="italic text-sm text-gray-700">
+                    An email is required to query the Nominatim API. Emails are
+                    not stored on this static website, but may be processed by
+                    Nominatim.
+                </p>
+                <input id="email-input" type="email" class="border" />
                 <h3>Data Table</h3>
                 <p class="italic text-sm text-gray-700">
                     Coordinate query is powered by
@@ -59,7 +63,9 @@
                         >Nominatim's Usage Policy</a
                     >, requests are limited to 1 per second.
                 </p>
-                <p class="italic text-sm text-gray-700">Changes are updated into the JSON automatically.</p>
+                <p class="italic text-sm text-gray-700">
+                    Changes are updated into the JSON automatically.
+                </p>
                 <table class="table-auto border">
                     <thead>
                         <tr>
@@ -90,8 +96,16 @@
                             <textarea class="w-full resize-none"></textarea>
                         </td>
                         <td class="border">
-                            <button class="query-button w-full h-full bg-gray-200 rounded cursor-pointer disabled:opacity-75 disabled:cursor-progress">Query Coordinates</button>
-                            <button class="w-full h-full bg-gray-200 rounded cursor-pointer">Open Coordinates</button>
+                            <button
+                                class="query-button w-full h-full bg-gray-200 rounded cursor-pointer disabled:opacity-75 disabled:cursor-progress"
+                            >
+                                Query Coordinates
+                            </button>
+                            <button
+                                class="w-full h-full bg-gray-200 rounded cursor-pointer"
+                            >
+                                Open Coordinates
+                            </button>
                         </td>
                     </tr>
                 </template>
