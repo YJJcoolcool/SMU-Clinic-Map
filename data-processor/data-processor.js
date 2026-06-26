@@ -52,24 +52,15 @@ function handleFileSelection(event) {
 
                 jsonData = jsonData.concat(jsonDataCurrentSheet);
             });
-
-            // Clean up data, removing whitespace and ensuring proper form of headers
-            jsonData.forEach((clinic) => {
-                for (const [key, value] of Object.entries(clinic)) {
-                    let cleanedKey = key.trim().toUpperCase();
-                    let cleanedValue =
-                        typeof value === "string" ? value.trim() : value;
-                    delete clinic[key];
-                    clinic[cleanedKey] = cleanedValue;
-                }
-            });
         } else if (fileExtension === "json") {
             jsonData = JSON.parse(data);
-            console.log(JSON.parse(data));
         }
 
-        // Display the jsonData
-        displayJSONData();
+        // Clean up data, removing whitespace and ensuring proper form of headers
+        cleanAndFormatJSONData();
+
+        // Display the raw jsonData
+        displayRawJSONData();
 
         // Call the dataIntoRows function
         dataIntoRows();
@@ -82,7 +73,28 @@ function handleFileSelection(event) {
     }
 }
 
-function displayJSONData() {
+function cleanAndFormatJSONData() {
+    jsonData.forEach((clinic) => {
+        // Convert all keys to uppercase, trim whitespace of keys & values
+        for (const [key, value] of Object.entries(clinic)) {
+            let cleanedKey = key.trim().replace(/\s\s+/g, " ").toUpperCase();
+            let cleanedValue =
+                typeof value === "string"
+                    ? value.trim().replace(/\s\s+/g, " ")
+                    : value;
+            delete clinic[key];
+            clinic[cleanedKey] = cleanedValue;
+        }
+
+        // Remove redundant "NO." key
+        delete clinic["NO."];
+    });
+}
+
+/**
+ * Displays the JSON data in text form in the output textarea
+ */
+function displayRawJSONData() {
     document.getElementById("output").innerHTML = JSON.stringify(jsonData);
 }
 
@@ -102,6 +114,15 @@ function dataIntoRows() {
         let clinicArea = (td[1].value = clinic["AREA"]);
         let clinicAddress = (td[2].value = clinic["ADDRESS"]);
         let clinicCoordinates = (td[3].value = clinic["COORDINATES"] || "");
+        let clinicOpeningHours = (td[4].value =
+            clinic["OPENING HOURS"] ||
+            [
+                clinic["OPENING HOURS 1"],
+                clinic["OPENING HOURS 2"],
+                clinic["OPENING HOURS 3"],
+                clinic["OPENING HOURS 4"],
+            ].join(";") ||
+            "");
 
         // Clinic Name
         td[0].addEventListener("focus", () => {
@@ -167,6 +188,22 @@ function dataIntoRows() {
             );
         });
 
+        // Clinic Opening Hours
+        td[4].addEventListener("focus", () => {
+            editing = {
+                CLINIC: clinicName,
+                ATTRIBUTE: "OPENING HOURS",
+            };
+        });
+        td[4].addEventListener("input", (event) => {
+            editing["NEW_VALUE"] = event.target.value;
+            modifyJSONData(
+                editing["CLINIC"],
+                editing["ATTRIBUTE"],
+                editing["NEW_VALUE"],
+            );
+        });
+
         let buttons = clone.querySelectorAll("button");
 
         // Query Coordinates Button
@@ -177,8 +214,8 @@ function dataIntoRows() {
                     if (!latlon) {
                         throw new Error(
                             "Query failed for clinic: " +
-                            clinicName +
-                            ". Check console for more info.",
+                                clinicName +
+                                ". Check console for more info.",
                         );
                     }
                     console.log(latlon);
@@ -204,8 +241,66 @@ function dataIntoRows() {
             window.open(url, "_blank");
         });
 
+        // Format Opening Hours Button
+        buttons[2].addEventListener("click", async () => {
+            const originalValue = td[4].value;
+            td[4].value = "Formatting...";
+            buttons[2].disabled = true;
+
+            try {
+                const formattedOpeningHours =
+                    await formatOpeningHours(originalValue);
+
+                if (formattedOpeningHours) {
+                    modifyJSONData(
+                        clinicName,
+                        "OPENING HOURS",
+                        formattedOpeningHours,
+                    );
+                    td[4].value = formattedOpeningHours;
+                } else {
+                    td[4].value = originalValue;
+                    alert("Could not format opening hours.");
+                }
+            } catch (error) {
+                alert("Error updating opening hours:" + error);
+                td[4].value = originalValue;
+            } finally {
+                buttons[2].disabled = false;
+            }
+        });
+
         TABLE_BODY.appendChild(clone);
     });
+}
+
+async function formatOpeningHours(...args) {
+    const joined = args.join(";");
+
+    const apiKey = document.getElementById("gemini-api-key-input").value.trim();
+
+    if (!apiKey) {
+        throw new Error("No API key entered!",);
+    }
+
+    return await generateGeminiContent(
+        apiKey,
+        `
+Convert the following raw text into a valid OpenStreetMap (OSM) "opening_hours" value. Return ONLY the final string value. Do not include conversational text and explanations.
+
+CRITICAL OSM SYNTAX RULES:
+1. Semicolons (;) separate completely different rules. If day ranges overlap across semicolons, the later rule OVERRIDES and deletes the earlier one.
+2. To specify multiple open intervals on the same day (e.g., morning and evening split shifts), use a comma (,) to chain the times or separate rules, NOT a semicolon.
+   - WRONG: Mo-Fr 08:00-13:00; Mo,We,Fr 18:00-21:00 (Erases morning hours for Mo, We, Fr)
+   - RIGHT: Mo,We,Fr 08:00-13:00,18:00-21:00; Tu,Th 08:00-13:00
+   - ALSO RIGHT: Mo-Fr 08:00-13:00, Mo,We,Fr 18:00-21:00
+3. Use standard 2-letter day abbreviations: Mo, Tu, We, Th, Fr, Sa, Su, PH (Public Holidays).
+4. Use 24-hour time formatting (HH:MM-HH:MM).
+5. Use "off" for closed days.
+
+Text to format: "${joined}"
+`,
+    );
 }
 
 /**
@@ -229,7 +324,7 @@ function modifyJSONData(clinicName, attributeName, newValue) {
             break;
         }
     }
-    displayJSONData();
+    displayRawJSONData();
 }
 
 function download() {
