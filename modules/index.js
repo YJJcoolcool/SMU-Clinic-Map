@@ -1,6 +1,7 @@
 import { map } from "./Map.js";
-import OpeningHours from "./OpeningHours.js";
 import Filters from "./Filters.js";
+import OpeningHours from "./OpeningHours.js";
+import SGPublicHolidays from "./SGPublicHolidays.js";
 
 // Initialise filters, running displayClinics() each time filters are updated
 const filters = new Filters(displayClinics);
@@ -35,12 +36,17 @@ fetch("./clinics.json")
 var markers = L.markerClusterGroup();
 map.addLayer(markers);
 
-function displayClinics() {
+const publicHolidays = new SGPublicHolidays();
+await publicHolidays.loadHolidays();
+
+async function displayClinics() {
     // Clear currently displayed markers if any
     markers.clearLayers();
 
     for (const clinic of jsonData["clinics"]) {
-        const openingHours = new OpeningHours(clinic["OPENING HOURS"]);
+        const openingHours = new OpeningHours(clinic["OPENING HOURS"], {
+            publicHolidays: publicHolidays.getHolidayDates()
+        });
 
         // Check if the open_only filter is applied and filter if so
         if (filters.get("open_only") && !openingHours.isOpen()) {
@@ -112,9 +118,16 @@ function displayClinics() {
                 const times = table[key];
                 const timeString =
                     times && times.length > 0 ? times.join(", ") : "Closed";
-                const isToday = new Date().getDay() === value[0];
-
-                gridHTML += `<div ${(isToday)?"class='font-bold'":""}>${value[1]}:</div><div class="${(isToday)?"font-bold":""} ${timeString === "Closed" ? "text-red-500" : ""}">${timeString}</div>`;
+                
+                    const today = new Date();
+                // If today is a PH, bold PH hours. Else, bold the current day of the week hours
+                if ((publicHolidays.isHoliday(today) && value[0] === -1) ||
+                    (!publicHolidays.isHoliday(today) && today.getDay() === value[0])) {
+                    gridHTML += `<div class="font-bold">${value[1]}:</div><div class="font-bold ${timeString === "Closed" ? "text-red-500" : ""}">${timeString}</div>`;
+                // Else, no bolding
+                } else {
+                    gridHTML += `<div>${value[1]}:</div><div${timeString === "Closed" ? " class='text-red-500'" : ""}>${timeString}</div>`;
+                }
             }
 
             gridContainer.innerHTML = gridHTML;
