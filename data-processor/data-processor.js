@@ -1,12 +1,15 @@
+import GeminiDateFormatter from './GeminiDateFormatter.js';
+import NominatimService from './NominatimService.js';
+
 // Variable to hold all the clinic information
-var jsonData = [];
+var jsonData = {};
 var editing = {};
 
 const fileInput = document.getElementById("file-input");
 fileInput.addEventListener("change", handleFileSelection);
 
 function handleFileSelection(event) {
-    jsonData = [];
+    jsonData = {};
 
     const file = event.target.files[0];
 
@@ -74,7 +77,7 @@ function handleFileSelection(event) {
 }
 
 function cleanAndFormatJSONData() {
-    jsonData.forEach((clinic) => {
+    jsonData["clinics"].forEach((clinic) => {
         // Convert all keys to uppercase, trim whitespace of keys & values
         for (const [key, value] of Object.entries(clinic)) {
             let cleanedKey = key.trim().replace(/\s\s+/g, " ").toUpperCase();
@@ -102,7 +105,7 @@ function dataIntoRows() {
     const TABLE_BODY = document.getElementById("table-body");
     TABLE_BODY.innerHTML = "";
 
-    jsonData.forEach((clinic) => {
+    jsonData["clinics"].forEach((clinic) => {
         const clone = document.importNode(
             document.getElementById("table-row-template").content,
             true,
@@ -209,7 +212,12 @@ function dataIntoRows() {
         // Query Coordinates Button
         buttons[0].addEventListener("click", () => {
             tempDisableAllQueryButtons();
-            nominatimSearch(td[2].value)
+
+            const email = document.getElementById("email-input").value;
+            const postalCode = /SINGAPORE (\d{6})/.exec(td[2].value)[1];
+
+            const nominatimService = new NominatimService(email);
+            nominatimService.searchPostalCode(postalCode)
                 .then((latlon) => {
                     if (!latlon) {
                         throw new Error(
@@ -248,8 +256,13 @@ function dataIntoRows() {
             buttons[2].disabled = true;
 
             try {
+                const apiKey = document.getElementById("gemini-api-key-input").value.trim();
+                const dateFormatter = new GeminiDateFormatter(apiKey);
+                
                 const formattedOpeningHours =
-                    await formatOpeningHours(originalValue);
+                    await dateFormatter.formatOpeningHours(originalValue);
+                
+                console.log("Formatted opening hours string:", formattedOpeningHours);
 
                 if (formattedOpeningHours) {
                     modifyJSONData(
@@ -260,10 +273,10 @@ function dataIntoRows() {
                     td[4].value = formattedOpeningHours;
                 } else {
                     td[4].value = originalValue;
-                    alert("Could not format opening hours.");
+                    alert("Could not format opening hours. Check console for more info.");
                 }
             } catch (error) {
-                alert("Error updating opening hours:" + error);
+                alert("Error while formatting opening hours:" + error);
                 td[4].value = originalValue;
             } finally {
                 buttons[2].disabled = false;
@@ -274,35 +287,6 @@ function dataIntoRows() {
     });
 }
 
-async function formatOpeningHours(...args) {
-    const joined = args.join(";");
-
-    const apiKey = document.getElementById("gemini-api-key-input").value.trim();
-
-    if (!apiKey) {
-        throw new Error("No API key entered!",);
-    }
-
-    return await generateGeminiContent(
-        apiKey,
-        `
-Convert the following raw text into a valid OpenStreetMap (OSM) "opening_hours" value. Return ONLY the final string value. Do not include conversational text and explanations.
-
-CRITICAL OSM SYNTAX RULES:
-1. Semicolons (;) separate completely different rules. If day ranges overlap across semicolons, the later rule OVERRIDES and deletes the earlier one.
-2. To specify multiple open intervals on the same day (e.g., morning and evening split shifts), use a comma (,) to chain the times or separate rules, NOT a semicolon.
-   - WRONG: Mo-Fr 08:00-13:00; Mo,We,Fr 18:00-21:00 (Erases morning hours for Mo, We, Fr)
-   - RIGHT: Mo,We,Fr 08:00-13:00,18:00-21:00; Tu,Th 08:00-13:00
-   - ALSO RIGHT: Mo-Fr 08:00-13:00, Mo,We,Fr 18:00-21:00
-3. Use standard 2-letter day abbreviations: Mo, Tu, We, Th, Fr, Sa, Su, PH (Public Holidays).
-4. Use 24-hour time formatting (HH:MM-HH:MM).
-5. Use "off" for closed days.
-
-Text to format: "${joined}"
-`,
-    );
-}
-
 /**
  * Update the global jsonData variable, while also updating the last updated date
  * @param clinicName Name of the clinic to update
@@ -310,25 +294,32 @@ Text to format: "${joined}"
  * @param newValue The new value of the attribute
  */
 function modifyJSONData(clinicName, attributeName, newValue) {
+    console.log(clinicName, attributeName, newValue)
     // Set last updated attribute of the jsonData
     const date = new Date();
-    const dateStr = `${date.getUTCFullYear()}-${("0" + date.getUTCMonth()).slice(-2)}-${date.getUTCDate()}`;
+    const dateStr = `${date.getUTCFullYear()}-${("0" + date.getUTCMonth()).slice(-2)}-${("0"+date.getUTCDate()).slice(-2)}`;
 
     jsonData["last_modified"] = dateStr;
 
     // Find the clinic in the data, then update the respective attribute
-    for (clinic of jsonData) {
+    for (let clinic of jsonData["clinics"]) {
         if (clinic["CLINIC"] === clinicName) {
             delete clinic[attributeName];
             clinic[attributeName] = newValue;
             break;
         }
     }
+
+    // Update the clinic name in the global editing variable if the clinic name was changed
+    if (attributeName === "CLINIC") {
+        editing["CLINIC"] = newValue;
+    }
+
     displayRawJSONData();
 }
 
-function download() {
-    if (jsonData.length <= 0) {
+document.getElementById("download-btn").addEventListener("click", () => {
+    if (jsonData["clinics"].length <= 0) {
         alert(
             "No data! Check that you have uploaded a file and the data is processed successfully.",
         );
@@ -353,36 +344,7 @@ function download() {
 
     // Clean up by revoking the URL
     URL.revokeObjectURL(url);
-}
-
-async function nominatimSearch(addressString) {
-    let email = document.getElementById("email-input").value;
-    email = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.exec(email);
-
-    if (!email) {
-        throw new Error(
-            "No email address entered! Ensure you enter a valid email address.",
-        );
-    }
-    email = email[0];
-
-    let postalCode = /SINGAPORE (\d{6})/.exec(addressString)[1];
-
-    let url = `https://nominatim.openstreetmap.org/search?country=SINGAPORE&postalcode=${postalCode}&format=json&email=${email}`;
-    console.log("Querying URL: " + url);
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.length <= 0) {
-        throw new Error(
-            "Nothing returned from query! The POI may not exist on OpenStreetMap.",
-        );
-    } else {
-        console.log(data);
-        return data[0]["lat"] + ", " + data[0]["lon"];
-    }
-}
+});
 
 function tempDisableAllQueryButtons() {
     document.querySelectorAll(".query-button").forEach((elem) => {
