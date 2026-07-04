@@ -2,14 +2,14 @@ import GeminiDateFormatter from './GeminiDateFormatter.js';
 import NominatimService from './NominatimService.js';
 
 // Variable to hold all the clinic information
-var jsonData = {};
+var jsonData = {'clinics': []};
 var editing = {};
 
 const fileInput = document.getElementById("file-input");
 fileInput.addEventListener("change", handleFileSelection);
 
 function handleFileSelection(event) {
-    jsonData = {};
+    jsonData = {'clinics': []};
 
     const file = event.target.files[0];
 
@@ -53,7 +53,7 @@ function handleFileSelection(event) {
                 console.log(sheetName);
                 console.log("Excel Data:", jsonDataCurrentSheet);
 
-                jsonData = jsonData.concat(jsonDataCurrentSheet);
+                jsonData["clinics"] = jsonData["clinics"].concat(jsonDataCurrentSheet);
             });
         } else if (fileExtension === "json") {
             jsonData = JSON.parse(data);
@@ -297,7 +297,7 @@ function modifyJSONData(clinicName, attributeName, newValue) {
     console.log(clinicName, attributeName, newValue)
     // Set last updated attribute of the jsonData
     const date = new Date();
-    const dateStr = `${date.getUTCFullYear()}-${("0" + date.getUTCMonth()).slice(-2)}-${("0"+date.getUTCDate()).slice(-2)}`;
+    const dateStr = `${date.getUTCFullYear()}-${("0" + (date.getUTCMonth()+1)).slice(-2)}-${("0"+date.getUTCDate()).slice(-2)}`;
 
     jsonData["last_modified"] = dateStr;
 

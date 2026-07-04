@@ -24,6 +24,9 @@ fetch("./clinics.json")
     .then((res) => res.json())
     .then((out) => {
         jsonData = out;
+
+        document.getElementById("last-updated").innerHTML = jsonData["last_modified"];
+
         displayClinics();
     })
     .catch((err) => console.error(err));
@@ -36,7 +39,7 @@ function displayClinics() {
     // Clear currently displayed markers if any
     markers.clearLayers();
 
-    for (const clinic of jsonData) {
+    for (const clinic of jsonData["clinics"]) {
         const openingHours = new OpeningHours(clinic["OPENING HOURS"]);
 
         // Check if the open_only filter is applied and filter if so
