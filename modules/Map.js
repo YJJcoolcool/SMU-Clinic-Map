@@ -1,5 +1,9 @@
+const defaultCoords = [1.356, 103.8]
+const maxBounds = [[1.1, 103.5], [1.6, 104.2]]
+
 // Set default view to Singapore
-export var map = L.map("map").setView([1.356, 103.8], 11);
+export var map = L.map("map").setView(defaultCoords, 11);
+map.setMaxBounds(maxBounds)
 
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
