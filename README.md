@@ -4,7 +4,7 @@ Web-based map that shows available clinics covered under SMU's Income Insurance 
 
 <https://yjjcoolcool.github.io/SMU-Clinic-Map>
 
-![SMU Clinic Map banner image](<SMU Clinic Map.png>)
+![SMU Clinic Map banner image](<SMU-Clinic-Map.webp>)
 
 ## The Problem
 
